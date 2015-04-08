@@ -14,10 +14,9 @@ import org.json.JSONObject;
 
 @WebSocket(maxTextMessageSize = 64 * 1024)
 
-public class initiateCoffeBreak {
+public class initiateCoffeBreak implements Runnable {
 	
 	private final CountDownLatch closeLatch;
-	String destUri = "ws://echo.websocket.org";
 	//@SuppressWarnings("unused")
 	private Session session;
 	btnDevice owner;
@@ -70,37 +69,45 @@ public class initiateCoffeBreak {
 			switch(action) {
 				case "+":
 					//Users added to Coffebreak (Or yourself, check if it's you. Otherwise turn on +1 led)
-					owner.getMQTT().SendMsg("ADDLED", owner.getPubTopic());
-					LOGGER.finer("Action + Sendmsg ADDLED");
+					owner.getMQTT().SendMsg("{\"DO\":\"ADDLED\"}", owner.getPubTopic());
+					LOGGER.finer("Action + Sendmsg {\"DO\":\"ADDLED\"}");
 					break;
 				case "-":
 					//Users removed from Coffebreak (Or yourself, check if it's you then reset button. Otherwise turn off -1 led)
-					owner.getMQTT().SendMsg("REMOVELED", owner.getPubTopic());
+					owner.getMQTT().SendMsg("{\"DO\":\"REMOVELED\"}", owner.getPubTopic());
 					LOGGER.finer("Action - Sendmsg REMOVELED");
 					break;
 				case "/":
 					//Status has been checked. Send response to Button (Lightning leds)
-					owner.getMQTT().SendMsg("NOLED", owner.getPubTopic());
+					owner.getMQTT().SendMsg("{\"DO\":\"NOLED\"}", owner.getPubTopic());
 					int i=0;
 					for(i=0; i<=users;i++) {
-						owner.getMQTT().SendMsg("ADDLED", owner.getPubTopic());
+						owner.getMQTT().SendMsg("{\"DO\":\"ADDLED\"}", owner.getPubTopic());
 					}
-					LOGGER.finer("Action / Sent NOLED and " + i + " ADDLEDS");
+					LOGGER.finer("Action / Sent {\"DO\":\"NOLED\"} and " + i + " {\"DO\":\"ADDLED\"}");
 					break;
 				case "!":
 					//CoffeBreak Active!
-					owner.getMQTT().SendMsg("FLASHLED", owner.getPubTopic());
+					owner.getMQTT().SendMsg("{\"DO\":\"FLASHLED\"}", owner.getPubTopic());
 					LOGGER.finer("Action ! Sendmsg FLASHLED");
 					break;
 				case "*":
 					//Break is Over reset button
-					owner.getMQTT().SendMsg("NOLED", owner.getPubTopic());
-					LOGGER.finer("Action * Sendmsg NOLED");
+					owner.getMQTT().SendMsg("{\"DO\":\"NOLED\"}", owner.getPubTopic());
+					LOGGER.finer("Action * Sendmsg {\"DO\":\"NOLED\"}");
 					break;
 			}
     	}
     }
-    
+    public void unregister() {
+    	//Send unregister
+    	//{"user":"Name","action":"-"}
+    	JSONObject sendUnregistertag = new JSONObject();
+    	sendUnregistertag.put("user", owner.getUser());
+    	sendUnregistertag.put("action", "+");
+        LOGGER.finer("Sending Unregistertag WS msg");
+        sendMsg(sendUnregistertag.toString());
+    }
     public void sendMsg(String msg) {
     	try {
             Future<Void> fut;
@@ -114,4 +121,9 @@ public class initiateCoffeBreak {
     public void closeSession() {
     	session.close(StatusCode.NORMAL, "");
     }
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		
+	}
 }

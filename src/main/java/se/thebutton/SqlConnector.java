@@ -58,7 +58,7 @@ public class SqlConnector {
 			CB VARCHAR(20),
 			PRIMARY KEY(id)
 		);
-		insert into btnDevice (deviceid,user,CB) values("test","murf","testcompany");
+		insert into btnDevice (deviceid,user,CB) values("test","Murf","testcompany");
 	 */
 
 	public btnDevice checkOwner(String DeviceID) {

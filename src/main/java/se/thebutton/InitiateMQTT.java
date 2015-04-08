@@ -2,6 +2,8 @@ package se.thebutton;
 
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -32,6 +34,8 @@ public class InitiateMQTT implements MqttCallback {
 	private final static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 	private SqlConnector sql=null;
 	private IMqttToken conToken=null;
+	//private initiateCoffeBreak[] coffeBreaks;
+	private Map<String, initiateCoffeBreak> coffeBreaks = new HashMap<String, initiateCoffeBreak>();
 	
 	public InitiateMQTT(Configuration config) throws Exception  {
 		this.topic=config.getProperty("mqttTopic");
@@ -123,6 +127,12 @@ public class InitiateMQTT implements MqttCallback {
 	}
 	public void messageArrived(String ontopic, MqttMessage msg) throws Exception {
 		
+		
+		//Spin off a thread for each device? how to communicate with that thread when unregistering?
+		
+		//Spin deviceid as threadid. 
+		
+		
 		// thebutton/cb/<device>/register
 		// {"register": "<device>"}
 		// thebutton/cb/<device>/set
@@ -131,22 +141,31 @@ public class InitiateMQTT implements MqttCallback {
 		String data= new String (msg.getPayload());
 		
 		JSONObject obj;
+		obj=new JSONObject(data);
 		
-		// IN THE FUTURE THIS NEEDS TO BE MOVED TO A SEPERATE CLASS TO MODULIRIZE THEBUTTON
 		if(ontopic.contains("/cb/")) {
-			if(ontopic.contains("/register")) {
-				
-				LOGGER.finest("Device register Parsing");
-				obj=new JSONObject(data);
-				String device=obj.get("register").toString();
-				
+			// IN THE FUTURE THIS NEEDS TO BE MOVED TO A SEPERATE CLASS TO MODULIRIZE THEBUTTON
+			LOGGER.finest("CB Device register Parsing");
+			String device=null;
+			if(obj.has("REGISTER")) {
+				device=obj.get("REGISTER").toString();
+			} else if(obj.has("UNREGISTER")) {
+				device=obj.get("UNREGISTER").toString();
+			}
+			//Check if there is a instantiated class of Device already.
+			if(coffeBreaks.get(device) != null) {
+				LOGGER.finer("Device Already Active " + device);
+				if(obj.has("UNREGISTER")) {
+					coffeBreaks.get(device).unregister();
+					//coffeBreaks.remove(device);
+				}
+			} else {
 				//Check device owner
-				if( sql != null && obj != null) {
+				if( sql != null && obj != null && device !=null ) {
 					LOGGER.finer("Checking Device owner in SQL to SQL " + device);
 					btnDevice owner=sql.checkOwner(device);
 					if(owner != null) {
 						owner.setMQTT(this);
-						
 						//Open WS connection
 						String destUri = "ws://coffeebreak.ws:1880";
 						WebSocketClient client = new WebSocketClient();
@@ -158,14 +177,14 @@ public class InitiateMQTT implements MqttCallback {
 				            client.connect(CB, echoUri, request);
 				            LOGGER.finer("Connecting to: " + echoUri.toString());
 				            CB.awaitClose(5, TimeUnit.SECONDS);
+				            coffeBreaks.put(device,CB);
 				        } catch (Throwable t) {
 				            t.printStackTrace();
 				        }
 					}
-				}
-			} else if(ontopic.contains("/unregister")) {
 				
-			}	
+				}
+			}
 		} else {
 			LOGGER.info("Unknown Topic " + ontopic);
 			obj = null;
