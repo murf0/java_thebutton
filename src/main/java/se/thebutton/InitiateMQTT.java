@@ -167,6 +167,7 @@ public class InitiateMQTT implements MqttCallback {
 					if(coffeBreaks.get(device).active()) {
 						LOGGER.info("WS still active for device: " + "");
 						//Send a + to the WS
+						coffeBreaks.get(device).sendRegisterWS();
 					} else {
 						LOGGER.info("WS not active for device: " + "");
 						//Initate new class
