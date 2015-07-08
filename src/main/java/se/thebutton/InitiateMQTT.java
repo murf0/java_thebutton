@@ -137,9 +137,9 @@ public class InitiateMQTT implements MqttCallback {
 		// {"register": "<device>"}
 		// thebutton/cb/<device>/set
 
-		LOGGER.finer(ontopic + " " + new String (msg.getPayload()));
+		LOGGER.info(ontopic + " " + new String (msg.getPayload()));
 		String data= new String (msg.getPayload());
-		
+		System.out.println(ontopic + " " + new String (msg.getPayload()));
 		JSONObject obj;
 		obj=new JSONObject(data);
 		
@@ -154,17 +154,45 @@ public class InitiateMQTT implements MqttCallback {
 			}
 			//Check if there is a instantiated class of Device already.
 			if(coffeBreaks.get(device) != null) {
-				LOGGER.finer("Device Already Active " + device);
+				LOGGER.info("Device Already Active " + device);
 				if(obj.has("UNREGISTER")) {
-					coffeBreaks.get(device).unregister();
-					//coffeBreaks.remove(device);
+					if(coffeBreaks.get(device).active()) {
+						LOGGER.info("WS still active for device: " + "");
+						coffeBreaks.get(device).unregister();
+						coffeBreaks.remove(device);
+					} else {
+						LOGGER.info("WS not active for device: " + "");
+					}
+				} else {
+					if(coffeBreaks.get(device).active()) {
+						LOGGER.info("WS still active for device: " + "");
+						//Send a + to the WS
+					} else {
+						LOGGER.info("WS not active for device: " + "");
+						//Initate new class
+						String destUri = "ws://coffeebreak.ws:1880";
+						WebSocketClient client = new WebSocketClient();
+				        initiateCoffeBreak CB = new initiateCoffeBreak(coffeBreaks.get(device).owner);
+				        try {
+				            client.start();
+				            URI echoUri = new URI(destUri);
+				            ClientUpgradeRequest request = new ClientUpgradeRequest();
+				            client.connect(CB, echoUri, request);
+				            LOGGER.info("Connecting to: " + echoUri.toString());
+				            CB.awaitClose(5, TimeUnit.SECONDS);
+				            coffeBreaks.put(device,CB);
+				        } catch (Throwable t) {
+				            t.printStackTrace();
+				        }
+					}
 				}
 			} else {
 				//Check device owner
 				if( sql != null && obj != null && device !=null ) {
-					LOGGER.finer("Checking Device owner in SQL to SQL " + device);
+					LOGGER.info("Checking Device owner in SQL to " + device);
 					btnDevice owner=sql.checkOwner(device);
 					if(owner != null) {
+						LOGGER.info("Device owner: " + owner.User);
 						owner.setMQTT(this);
 						//Open WS connection
 						String destUri = "ws://coffeebreak.ws:1880";
@@ -175,12 +203,14 @@ public class InitiateMQTT implements MqttCallback {
 				            URI echoUri = new URI(destUri);
 				            ClientUpgradeRequest request = new ClientUpgradeRequest();
 				            client.connect(CB, echoUri, request);
-				            LOGGER.finer("Connecting to: " + echoUri.toString());
+				            LOGGER.info("Connecting to: " + echoUri.toString());
 				            CB.awaitClose(5, TimeUnit.SECONDS);
 				            coffeBreaks.put(device,CB);
 				        } catch (Throwable t) {
 				            t.printStackTrace();
 				        }
+					} else {
+						LOGGER.info("No owner found");
 					}
 				
 				}

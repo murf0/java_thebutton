@@ -25,6 +25,9 @@ public class initiateCoffeBreak implements Runnable {
 	
 	private final static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
 	
+	public boolean active() {
+		return (this.session != null);
+	}
 	public initiateCoffeBreak(btnDevice owner) {
 		this.closeLatch = new CountDownLatch(1);
 		this.owner=owner;
@@ -35,34 +38,37 @@ public class initiateCoffeBreak implements Runnable {
  
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-    	LOGGER.finer("Connection closed:" + statusCode + " - "+ reason.toString());
+    	LOGGER.info("Connection closed:" + statusCode + " - "+ reason.toString());
         this.session = null;
         this.closeLatch.countDown();
         // Session closes and CB removes our interest in a CB
-        owner.getMQTT().SendMsg("NOLED", owner.getPubTopic());
+        owner.getMQTT().SendMsg("{\"DO\":\"NOLED\"}", owner.getPubTopic());
+        
     }
  
     @OnWebSocketConnect
     public void onConnect(Session session) {
-    	LOGGER.finer("Got connect: " + session.toString());
+    	LOGGER.info("Got connect: " + session.toString());
         this.session = session;
         //{"tag":"Company","action":"owner.getCB()"}
+        sendRegisterWS();
+    }
+    public void sendRegisterWS() {
         JSONObject sendRegistertag = new JSONObject();
         sendRegistertag.put("tag", owner.getCB());
         sendRegistertag.put("action", "#");
-        LOGGER.finer("Sending First WS msg");
+        LOGGER.info("Sending First WS msg");
         sendMsg(sendRegistertag.toString());
         sendRegistertag = new JSONObject();
         sendRegistertag.put("user", owner.getUser());
         sendRegistertag.put("action", "+");
-        LOGGER.finer("Sending Second WS msg");
+        LOGGER.info("Sending Second WS msg");
         sendMsg(sendRegistertag.toString());
-        
     }
  
     @OnWebSocketMessage
     public void onMessage(String msg) {
-    	LOGGER.finer("Got msg: "+ msg);
+    	LOGGER.info("Got msg: "+ msg);
     	JSONObject obj=new JSONObject(msg);
     	if(obj.has("action")) {
 			String action=obj.get("action").toString();
@@ -70,12 +76,12 @@ public class initiateCoffeBreak implements Runnable {
 				case "+":
 					//Users added to Coffebreak (Or yourself, check if it's you. Otherwise turn on +1 led)
 					owner.getMQTT().SendMsg("{\"DO\":\"ADDLED\"}", owner.getPubTopic());
-					LOGGER.finer("Action + Sendmsg {\"DO\":\"ADDLED\"}");
+					LOGGER.info("Action + Sendmsg {\"DO\":\"ADDLED\"}");
 					break;
 				case "-":
 					//Users removed from Coffebreak (Or yourself, check if it's you then reset button. Otherwise turn off -1 led)
 					owner.getMQTT().SendMsg("{\"DO\":\"REMOVELED\"}", owner.getPubTopic());
-					LOGGER.finer("Action - Sendmsg REMOVELED");
+					LOGGER.info("Action - Sendmsg REMOVELED");
 					break;
 				case "/":
 					//Status has been checked. Send response to Button (Lightning leds)
@@ -84,17 +90,17 @@ public class initiateCoffeBreak implements Runnable {
 					for(i=0; i<=users;i++) {
 						owner.getMQTT().SendMsg("{\"DO\":\"ADDLED\"}", owner.getPubTopic());
 					}
-					LOGGER.finer("Action / Sent {\"DO\":\"NOLED\"} and " + i + " {\"DO\":\"ADDLED\"}");
+					LOGGER.info("Action / Sent {\"DO\":\"NOLED\"} and " + i + " {\"DO\":\"ADDLED\"}");
 					break;
 				case "!":
 					//CoffeBreak Active!
 					owner.getMQTT().SendMsg("{\"DO\":\"FLASHLED\"}", owner.getPubTopic());
-					LOGGER.finer("Action ! Sendmsg FLASHLED");
+					LOGGER.info("Action ! Sendmsg FLASHLED");
 					break;
 				case "*":
 					//Break is Over reset button
 					owner.getMQTT().SendMsg("{\"DO\":\"NOLED\"}", owner.getPubTopic());
-					LOGGER.finer("Action * Sendmsg {\"DO\":\"NOLED\"}");
+					LOGGER.info("Action * Sendmsg {\"DO\":\"NOLED\"}");
 					break;
 			}
     	}
@@ -104,14 +110,14 @@ public class initiateCoffeBreak implements Runnable {
     	//{"user":"Name","action":"-"}
     	JSONObject sendUnregistertag = new JSONObject();
     	sendUnregistertag.put("user", owner.getUser());
-    	sendUnregistertag.put("action", "+");
-        LOGGER.finer("Sending Unregistertag WS msg");
+    	sendUnregistertag.put("action", "-");
+        LOGGER.info("Sending Unregistertag WS msg");
         sendMsg(sendUnregistertag.toString());
     }
     public void sendMsg(String msg) {
     	try {
             Future<Void> fut;
-            LOGGER.finer("Sent msg: "+ msg);
+            LOGGER.info("Sent msg: "+ msg);
             fut = session.getRemote().sendStringByFuture(msg);
             fut.get(2, TimeUnit.SECONDS);        
         } catch (Throwable t) {

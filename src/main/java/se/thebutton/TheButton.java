@@ -40,13 +40,14 @@ public class TheButton {
 			/**
 			 * Parse Configuration
 			 */
-			LOGGER.setLevel(Level.FINEST);
+			
 			LOGGER.info("Loading Configruation Input");
 			config = new Configuration("server.config");
 			LOGGER.info("Setting Loglevel to: " + config.getProperty("logLevel"));
-			if(config.getProperty("logLevel") != "FINEST") {
+			/*if(config.getProperty("logLevel") != "FINEST") {
 				LOGGER.setLevel(Level.INFO);
 			}
+			LOGGER.setLevel(Level.ALL);*/
 			LOGGER.info("Connect to MySQL");
 			SqlConnector sql = new SqlConnector(config);
 			LOGGER.info("Connect to MQTT");

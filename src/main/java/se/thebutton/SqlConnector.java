@@ -37,17 +37,11 @@ public class SqlConnector {
 		url = config.getProperty("sqlUrl");
 		user = config.getProperty("sqlUser");
 		password = config.getProperty("sqlPassword");
-		try {
-			cpds.setDriverClass("com.mysql.jdbc.Driver"); //loads the jdbc driver
-	        cpds.setJdbcUrl(url);
-	        cpds.setUser(user);
-	        cpds.setPassword(password);
-	        con = cpds.getConnection();
-	        //pst = con.prepareStatement("INSERT INTO raw(timestamp,device,user,topic,latitude,longitude,speed,altitude) VALUES(?,?,?,?,?,?,?,?)");
-	        pst_check = con.prepareStatement("SELECT * FROM btnDevice WHERE deviceid=? LIMIT 1");
-	} catch (SQLException ex) {
-            LOGGER.log(Level.SEVERE, ex.getMessage(), ex);
-        }
+		cpds.setDriverClass("com.mysql.jdbc.Driver"); //loads the jdbc driver
+        cpds.setJdbcUrl(url);
+        cpds.setUser(user);
+        cpds.setPassword(password);
+	
 	}
 
 	/*
@@ -63,6 +57,8 @@ public class SqlConnector {
 
 	public btnDevice checkOwner(String DeviceID) {
 			try {
+				con = cpds.getConnection();
+		        pst_check = con.prepareStatement("SELECT * FROM btnDevice WHERE deviceid=? LIMIT 1");
 				LOGGER.finer("Get Device Owner from ID: " + DeviceID);
 				pst_check.setString(1, DeviceID); //Device
 				ResultSet rs = pst_check.executeQuery();
@@ -71,15 +67,18 @@ public class SqlConnector {
 					Result.setUser(rs.getString("user"));
 					Result.setDeviceID(rs.getString("deviceid"));
 					Result.setCB(rs.getString("CB"));
+					con.close();
 					return Result;
 				} else {
+					con.close();
 					return null;
 				}
+				
 			} catch (SQLException ex) {
 	            LOGGER.log(Level.WARNING, ex.getMessage(), ex);
 			} catch (Exception e) {
 			e.printStackTrace();
-		}
+			}
 			return null;
 	}
 
